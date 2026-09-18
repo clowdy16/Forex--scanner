@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pip Desk — Forex Scanner</title>
+<style>
+  :root{
+    --ink:#0E1420;
+    --panel:#161E2E;
+    --panel-2:#1C2537;
+    --line:#2A3448;
+    --text:#E7EBF3;
+    --muted:#8791A6;
+    --bull:#43C99A;
+    --bear:#E8697F;
+    --neutral:#E8B84F;
+    --accent:#5B8CFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:20px;
+    margin-bottom:22px;
+  }
+  .brand{display:flex;flex-direction:column;gap:4px;}
+  .brand .mark{
+    font-size:12px;
+    letter-spacing:.14em;
+    color:var(--accent);
+    font-weight:700;
+  }
+  .brand h1{
+    margin:0;
+    font-size:26px;
+    font-weight:650;
+    letter-spacing:-0.01em;
+  }
+  .brand p{margin:0;color:var(--muted);font-size:13.5px;max-width:46ch;}
+  .status{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px;
+    color:var(--muted);
+    text-align:right;
+  }
+  .status b{color:var(--text);}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:20px;
+  }
+  .panel h2{
+    margin:0 0 12px;
+    font-size:13px;
+    letter-spacing:.06em;
+    color:var(--muted);
+    font-weight:650;
+    text-transform:uppercase;
+  }
+
+  .pairs{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .pair-chip{
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:7px 13px;
+    border-radius:999px;
+    font-size:13px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    cursor:pointer;
+    user-select:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .pair-chip.active{
+    border-color:var(--accent);
+    background:rgba(91,140,255,.14);
+  }
+
+  .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  button.primary{
+    background:var(--accent);
+    color:#0E1420;
+    border:none;
+    font-weight:700;
+    padding:10px 18px;
+    border-radius:8px;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  button.primary:disabled{opacity:.5;cursor:default;}
+  button.primary:hover:not(:disabled){filter:brightness(1.08);}
+  .hint{color:var(--muted);font-size:12.5px;}
+
+  table{width:100%;border-collapse:collapse;}
+  thead th{
+    text-align:left;
+    font-size:11.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:650;
+    padding:0 10px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  tbody td{
+    padding:12px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:middle;
+    font-size:14px;
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{cursor:default;}
+  .pair-name{font-weight:650;letter-spacing:.01em;}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  .chg-up{color:var(--bull);}
+  .chg-down{color:var(--bear);}
+  .badge{
+    display:inline-block;
+    padding:3px 9px;
+    border-radius:6px;
+    font-size:12px;
+    font-weight:650;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  .b-bull{background:rgba(67,201,154,.15);color:var(--bull);}
+  .b-bear{background:rgba(232,105,127,.15);color:var(--bear);}
+  .b-neutral{background:rgba(232,184,79,.15);color:var(--neutral);}
+  .signal{font-weight:700;letter-spacing:.01em;}
+  .signal.strong-buy{color:var(--bull);}
+  .signal.buy{color:var(--bull);opacity:.75;}
+  .signal.neutral{color:var(--muted);}
+  .signal.sell{color:var(--bear);opacity:.75;}
+  .signal.strong-sell{color:var(--bear);}
+
+  .empty, .loading, .error{
+    padding:40px 10px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .error{color:var(--bear);}
+  canvas.spark{display:block;}
+
+  #chartPreviewHost img{
+    max-width:220px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    display:block;
+    margin-top:4px;
+  }
+  .analysis-card{
+    margin-top:14px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px 18px;
+  }
+  .analysis-card .row{
+    display:flex;
+    gap:10px;
+    margin-bottom:8px;
+    font-size:13.5px;
+  }
+  .analysis-card .row:last-child{margin-bottom:0;}
+  .analysis-card .k{
+    color:var(--muted);
+    min-width:110px;
+    flex-shrink:0;
+    font-size:12px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    padding-top:2px;
+  }
+  .analysis-card .v{line-height:1.5;}
+
+  footer{
+    margin-top:24px;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.6;
+  }
+  footer a{color:var(--accent);}
+
+  @media (max-width:640px){
+    .status{text-align:left;}
+    th:nth-child(6), td:nth-child(6){display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="mark">PIP DESK</div>
+      <h1>Forex Scanner</h1>
+      <p>Screens major currency pairs for trend, momentum and volatility signals from daily closing rates.</p>
+    </div>
+    <div class="status" id="status">Not scanned yet</div>
+  </header>
+
+  <div class="panel">
+    <h2>Data source</h2>
+    <p class="hint" style="margin:0 0 10px;">Leave blank to fetch Frankfurter/Yahoo directly. If live data won't load on your hosted site, deploy the Cloudflare Worker in <code>proxy/worker.js</code> and paste its URL here.</p>
+    <input type="text" id="proxyUrl" placeholder="https://your-worker.workers.dev (optional)"
+      style="width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;">
+  </div>
+
+  <div class="panel">
+    <h2>Read a chart screenshot</h2>
+    <p class="hint" style="margin:0;">This has to happen in chat, not inside this page — the artifact can't reliably reach Claude's API on its own once it's saved as a file. Just paste or upload your chart screenshot directly into the conversation with Claude and ask for a read; it'll cover trend, key levels, and anything visible on your indicators.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Pairs to scan</h2>
+    <div class="pairs" id="pairChips"></div>
+    <div class="controls">
+      <button class="primary" id="scanBtn">Scan pairs</button>
+      <span class="hint" id="progressHint"></span>
+    </div>
+  </div>
+
+  <div class="panel" style="padding:0;overflow-x:auto;">
+    <div style="padding:18px 20px 4px;">
+      <h2 style="margin:0;">Results</h2>
+    </div>
+    <div id="resultsHost" style="padding:0 6px 10px;">
+      <div class="empty">Choose your pairs and hit Scan to pull data.</div>
+    </div>
+  </div>
+
+  <footer>
+    FX data: daily ECB reference rates via the free Frankfurter API (frankfurter.app). Gold (XAU/USD): Yahoo
+    Finance's public chart endpoint. Both are end-of-day/delayed, not intraday ticks — and if the page can't
+    reach them (e.g. a sandboxed preview with no outbound network access), it shows simulated data instead and
+    says so above the table. Signals are simple rule-based reads on SMA20/50, RSI14, MACD(12,26,9) and
+    Bollinger(20,2) — not trading advice.
+  </footer>
+
+</div>
+
+<script>
+// Blocked cross-origin fetches in sandboxed previews can surface as a generic,
+// detail-stripped "Script error." at the window level even though the fetch
+// itself is already caught and handled inside fetchSeries(). Suppress that
+// specific noise so it doesn't look like a real failure.
+window.addEventListener('error', (e) => {
+  if (e.message === 'Script error.' || e.message === 'Script error') {
+    e.stopImmediatePropagation();
+  }
+}, true);
+
+const ALL_PAIRS = [
+  ["EUR","USD"], ["GBP","USD"], ["USD","JPY"], ["USD","CHF"],
+  ["AUD","USD"], ["USD","CAD"], ["NZD","USD"], ["EUR","GBP"],
+  ["EUR","JPY"], ["GBP","JPY"], ["XAU","USD"]
+];
+
+let selected = new Set(ALL_PAIRS.map(p => p.join("/")));
+
+const chipsHost = document.getElementById('pairChips');
+const resultsHost = document.getElementById('resultsHost');
+const statusEl = document.getElementById('status');
+const scanBtn = document.getElementById('scanBtn');
+const progressHint = document.getElementById('progressHint');
+
+function renderChips(){
+  chipsHost.innerHTML = '';
+  ALL_PAIRS.forEach(([b,q]) => {
+    const key = b + "/" + q;
+    const chip = document.createElement('div');
+    chip.className = 'pair-chip' + (selected.has(key) ? ' active' : '');
+    chip.textContent = key;
+    chip.addEventListener('click', () => {
+      if (selected.has(key)) selected.delete(key); else selected.add(key);
+      renderChips();
+    });
+    chipsHost.appendChild(chip);
+  });
+}
+renderChips();
+
+// Remember the proxy URL locally (per-browser, not shared) so it's not
+// re-typed on every visit.
+const proxyInput = document.getElementById('proxyUrl');
+try {
+  const saved = localStorage.getItem('pipdesk_proxy_url');
+  if (saved) proxyInput.value = saved;
+} catch(e){}
+proxyInput.addEventListener('change', () => {
+  try { localStorage.setItem('pipdesk_proxy_url', proxyInput.value.trim()); } catch(e){}
+});
+
+function dateStr(d){ return d.toISOString().slice(0,10); }
+
+let usedFallback = false;
+
+// Rough reference spot rates, just used to seed realistic-looking demo data
+// when the live API can't be reached (e.g. this sandbox blocks outbound
+// network calls from the page).
+const REF_RATE = {
+  "EUR/USD": 1.08, "GBP/USD": 1.27, "USD/JPY": 149.5, "USD/CHF": 0.88,
+  "AUD/USD": 0.66, "USD/CAD": 1.36, "NZD/USD": 0.61, "EUR/GBP": 0.85,
+  "EUR/JPY": 161.5, "GBP/JPY": 190.0, "XAU/USD": 4300
+};
+
+function simulateSeries(base, quote, days){
+  const key = base + "/" + quote;
+  const ref = REF_RATE[key] || 1.0;
+  // deterministic-ish pseudo-random walk so repeat scans aren't wild
+  let seed = 0;
+  for (const c of key) seed += c.charCodeAt(0);
+  let rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const closes = [ref * (0.97 + rand() * 0.06)];
+  for (let i = 1; i < days; i++){
+    const drift = (rand() - 0.5) * ref * 0.004;
+    closes.push(Math.max(closes[i-1] + drift, ref * 0.85));
+  }
+  return closes;
+}
+
+async function fetchGoldSeries(){
+  const proxy = document.getElementById('proxyUrl').value.trim().replace(/\/$/, '');
+  const url = proxy
+    ? `${proxy}/gold`
+    : `https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?range=6mo&interval=1d`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('gold request failed');
+  const data = await res.json();
+  const closes = data.chart.result[0].indicators.quote[0].close.filter(c => c !== null);
+  if (closes.length < 30) throw new Error('not enough gold history');
+  return closes;
+}
+
+async function fetchSeries(base, quote){
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 160);
+  const proxy = document.getElementById('proxyUrl').value.trim().replace(/\/$/, '');
+  const url = proxy
+    ? `${proxy}/fx?from=${base}&to=${quote}&start=${dateStr(start)}&end=${dateStr(end)}`
+    : `https://api.frankfurter.app/${dateStr(start)}..${dateStr(end)}?from=${base}&to=${quote}`;
+  try {
+    if (base === 'XAU' && quote === 'USD') return await fetchGoldSeries();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('request failed for ' + base + '/' + quote);
+    const data = await res.json();
+    const dates = Object.keys(data.rates).sort();
+    const closes = dates.map(d => data.rates[d][quote]);
+    if (closes.length < 30) throw new Error('not enough history');
+    return closes;
+  } catch (e){
+    usedFallback = true;
+    return simulateSeries(base, quote, 100);
+  }
+}
+
+function sma(arr, period){
+  if (arr.length < period) return null;
+  const slice = arr.slice(arr.length - period);
+  return slice.reduce((a,b) => a+b, 0) / period;
+}
+
+function ema(arr, period){
+  if (arr.length < period) return null;
+  const k = 2/(period+1);
+  let e = arr.slice(0, period).reduce((a,b)=>a+b,0)/period;
+  for (let i = period; i < arr.length; i++){
+    e = arr[i]*k + e*(1-k);
+  }
+  return e;
+}
+
+function emaSeries(arr, period){
+  if (arr.length < period) return [];
+  const k = 2/(period+1);
+  let e = arr.slice(0, period).reduce((a,b)=>a+b,0)/period;
+  const out = [e];
+  for (let i = period; i < arr.length; i++){
+    e = arr[i]*k + e*(1-k);
+    out.push(e);
+  }
+  return out;
+}
+
+function rsi(arr, period){
+  if (arr.length < period+1) return null;
+  const diffs = [];
+  for (let i = 1; i < arr.length; i++) diffs.push(arr[i]-arr[i-1]);
+  const recent = diffs.slice(diffs.length - period);
+  let gains = 0, losses = 0;
+  recent.forEach(d => { if (d>0) gains+=d; else losses += -d; });
+  const avgGain = gains/period, avgLoss = losses/period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain/avgLoss;
+  return 100 - (100/(1+rs));
+}
+
+function macd(arr){
+  const emaFast = emaSeries(arr, 12);
+  const emaSlow = emaSeries(arr, 26);
+  if (!emaFast.length || !emaSlow.length) return {line:null, signal:null, hist:null};
+  const offset = emaFast.length - emaSlow.length;
+  const macdLine = [];
+  for (let i = 0; i < emaSlow.length; i++){
+    macdLine.push(emaFast[i+offset] - emaSlow[i]);
+  }
+  const signalSeries = emaSeries(macdLine, 9);
+  if (!signalSeries.length) return {line: macdLine[macdLine.length-1], signal:null, hist:null};
+  const line = macdLine[macdLine.length-1];
+  const signal = signalSeries[signalSeries.length-1];
+  return {line, signal, hist: line - signal};
+}
+
+function bollinger(arr, period, mult){
+  if (arr.length < period) return null;
+  const slice = arr.slice(arr.length - period);
+  const mean = slice.reduce((a,b)=>a+b,0)/period;
+  const variance = slice.reduce((a,b)=> a + Math.pow(b-mean,2), 0) / period;
+  const sd = Math.sqrt(variance);
+  return { mid: mean, upper: mean + mult*sd, lower: mean - mult*sd };
+}
+
+function decimalsFor(quote, price){
+  if (price > 100) return 2;
+  return quote === 'JPY' ? 3 : 5;
+}
+
+function buildSparkline(closes){
+  const w = 110, h = 34;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.className = 'spark';
+  const ctx = canvas.getContext('2d');
+  const data = closes.slice(-30);
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = (max - min) || 1;
+  const up = data[data.length-1] >= data[0];
+  ctx.strokeStyle = up ? '#43C99A' : '#E8697F';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  data.forEach((v,i) => {
+    const x = (i/(data.length-1)) * (w-4) + 2;
+    const y = h - 2 - ((v-min)/range) * (h-4);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  return canvas;
+}
+
+function computeSignal(closes){
+  const price = closes[closes.length-1];
+  const prev = closes[closes.length-2];
+  const s20 = sma(closes, 20);
+  const s50 = sma(closes, 50);
+  const r = rsi(closes, 14);
+  const m = macd(closes);
+  const bb = bollinger(closes, 20, 2);
+
+  let score = 0;
+  const trendUp = s20 !== null && s50 !== null && s20 > s50;
+  if (s20 !== null && s50 !== null) score += trendUp ? 1 : -1;
+
+  let rsiTag = 'neutral';
+  if (r !== null){
+    if (r >= 70){ rsiTag = 'overbought'; score -= 1; }
+    else if (r <= 30){ rsiTag = 'oversold'; score += 1; }
+  }
+
+  let macdBull = null;
+  if (m.line !== null && m.signal !== null){
+    macdBull = m.line > m.signal;
+    score += macdBull ? 1 : -1;
+  }
+
+  let bbTag = 'inside';
+  if (bb){
+    if (price >= bb.upper){ bbTag = 'upper breakout'; score -= 0.5; }
+    else if (price <= bb.lower){ bbTag = 'lower breakout'; score += 0.5; }
+  }
+
+  let signalLabel = 'Neutral', signalClass = 'neutral';
+  if (score >= 2){ signalLabel = 'Strong Buy'; signalClass = 'strong-buy'; }
+  else if (score >= 0.5){ signalLabel = 'Buy'; signalClass = 'buy'; }
+  else if (score <= -2){ signalLabel = 'Strong Sell'; signalClass = 'strong-sell'; }
+  else if (score <= -0.5){ signalLabel = 'Sell'; signalClass = 'sell'; }
+
+  return { price, prev, trendUp, r, macdBull, bbTag, rsiTag, signalLabel, signalClass, score };
+}
+
+async function runScan(){
+  const pairs = ALL_PAIRS.filter(([b,q]) => selected.has(b+"/"+q));
+  if (!pairs.length){
+    resultsHost.innerHTML = '<div class="empty">Select at least one pair.</div>';
+    return;
+  }
+  scanBtn.disabled = true;
+  resultsHost.innerHTML = '<div class="loading">Pulling daily rates…</div>';
+  progressHint.textContent = '';
+  usedFallback = false;
+
+  const rows = [];
+  let done = 0;
+  for (const [base, quote] of pairs){
+    progressHint.textContent = `Fetching ${base}/${quote} (${done+1}/${pairs.length})…`;
+    try{
+      const closes = await fetchSeries(base, quote);
+      if (closes.length < 30) throw new Error('not enough history');
+      const sig = computeSignal(closes);
+      rows.push({ base, quote, closes, sig });
+    } catch(e){
+      rows.push({ base, quote, error: true });
+    }
+    done++;
+  }
+  progressHint.textContent = '';
+  scanBtn.disabled = false;
+
+  rows.sort((a,b) => {
+    if (a.error) return 1;
+    if (b.error) return -1;
+    return b.sig.score - a.sig.score;
+  });
+
+  renderResults(rows);
+  const now = new Date();
+  statusEl.innerHTML = `Last scan <b>${now.toLocaleTimeString()}</b> · ${rows.length} pairs`;
+  if (usedFallback){
+    const banner = document.createElement('div');
+    banner.setAttribute('data-scan-banner', '1');
+    banner.style.cssText = 'padding:10px 20px;margin:0 0 14px;background:rgba(232,184,79,.1);border:1px solid rgba(232,184,79,.3);border-radius:8px;color:var(--neutral);font-size:12.5px;';
+    banner.textContent = "Live rates couldn't be reached from this page, so the numbers below are simulated for demo purposes. Run forex_scanner.py locally for real data.";
+    resultsHost.parentElement.insertBefore(banner, resultsHost);
+  }
+}
+
+function renderResults(rows){
+  const oldBanner = resultsHost.parentElement.querySelector(':scope > div[data-scan-banner]');
+  if (oldBanner) oldBanner.remove();
+  if (!rows.length){
+    resultsHost.innerHTML = '<div class="empty">No data.</div>';
+    return;
+  }
+  const table = document.createElement('table');
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Pair</th>
+        <th>Price</th>
+        <th>Chg</th>
+        <th>RSI 14</th>
+        <th>MACD</th>
+        <th>30d</th>
+        <th>Signal</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement('tbody');
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.error){
+      tr.innerHTML = `<td class="pair-name">${r.base}/${r.quote}</td><td colspan="6" style="color:var(--muted);">Couldn't load data for this pair.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    const { price, prev, r: rsiVal, macdBull, signalLabel, signalClass, rsiTag } = r.sig;
+    const dec = decimalsFor(r.quote, price);
+    const chgPct = ((price - prev)/prev) * 100;
+    const chgClass = chgPct >= 0 ? 'chg-up' : 'chg-down';
+    const chgSign = chgPct >= 0 ? '+' : '';
+
+    let rsiBadgeClass = 'b-neutral';
+    if (rsiTag === 'overbought') rsiBadgeClass = 'b-bear';
+    else if (rsiTag === 'oversold') rsiBadgeClass = 'b-bull';
+
+    let macdBadgeClass = 'b-neutral', macdText = 'n/a';
+    if (macdBull !== null){
+      macdBadgeClass = macdBull ? 'b-bull' : 'b-bear';
+      macdText = macdBull ? 'Bullish' : 'Bearish';
+    }
+
+    const td = document.createElement('td');
+    tr.innerHTML = `
+      <td class="pair-name">${r.base}/${r.quote}</td>
+      <td class="mono">${price.toFixed(dec)}</td>
+      <td class="mono ${chgClass}">${chgSign}${chgPct.toFixed(2)}%</td>
+      <td><span class="badge ${rsiBadgeClass}">${rsiVal !== null ? rsiVal.toFixed(0) : '—'}</span></td>
+      <td><span class="badge ${macdBadgeClass}">${macdText}</span></td>
+      <td class="sparkcell"></td>
+      <td class="signal ${signalClass}">${signalLabel}</td>
+    `;
+    tr.querySelector('.sparkcell').appendChild(buildSparkline(r.closes));
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  resultsHost.innerHTML = '';
+  resultsHost.appendChild(table);
+}
+
+scanBtn.addEventListener('click', runScan);
+</script>
+</body>
+</html>
